@@ -1,6 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { getSession, onAuthStateChange, type AuthSession } from '@/lib/auth';
-import { dbUtils } from '@/lib/db-utils';
 
 export const useAuth = () => {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -8,17 +9,11 @@ export const useAuth = () => {
   const [role, setRole] = useState<string | null>(null);
 
   const fetchRole = async (userId: string) => {
-    const { data, error } = await dbUtils.execute(
-      `SELECT r.name
-       FROM user_roles ur
-       JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = $1`,
-      [userId]
-    );
-
-    if (!error && data && data.length > 0) {
-      setRole(data[0].name);
-    } else {
+    try {
+      const res = await fetch(`/api/auth/role?userId=${userId}`);
+      const data = await res.json();
+      setRole(data.role || null);
+    } catch {
       setRole(null);
     }
   };

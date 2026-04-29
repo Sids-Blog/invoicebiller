@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,6 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Checkbox } from "@/components/ui/checkbox";
-import html2pdf from "html2pdf.js";
 import InvoiceTemplate from "@/components/templates/InvoiceTemplate";
 import ReceiptTemplate from "@/components/templates/ReceiptTemplate";
 import { createRoot } from "react-dom/client";
@@ -107,9 +106,8 @@ interface SellerInfo {
 
 export const Billing = () => {
   const { toast } = useToast();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const orderState = location.state?.order;
+  const pathname = usePathname();
+  const router = useRouter();
 
   // Create Bill states
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -256,27 +254,33 @@ export const Billing = () => {
   }, [fetchData]);
 
   useEffect(() => {
-    if (orderState && products.length > 0 && customers.length > 0) {
-      setSelectedCustomer(orderState.customer_id);
-      setOrderId(orderState.id);
-      const items = orderState.order_items.map(
-        (item: { product_id: string; quantity: number }) => {
-          const product = products.find((p) => p.id === item.product_id);
-          return {
-            product_id: item.product_id,
-            product_name: product?.name || "Unknown",
-            master_lot_size: product?.lot_size || 0,
-            lots: item.quantity / (product?.lot_size || 1) + "",
-            quantity: item.quantity,
-            price: product?.price || 0,
-            lot_price: product?.lot_price || 0,
-          };
-        }
-      );
-      setBillItems(items);
-      navigate(location.pathname, { replace: true, state: {} });
+    const pendingOrderStr = sessionStorage.getItem('pending_order');
+    if (pendingOrderStr && products.length > 0 && customers.length > 0) {
+      try {
+        const orderState = JSON.parse(pendingOrderStr);
+        setSelectedCustomer(orderState.customer_id);
+        setOrderId(orderState.id);
+        const items = orderState.order_items.map(
+          (item: { product_id: string; quantity: number }) => {
+            const product = products.find((p) => p.id === item.product_id);
+            return {
+              product_id: item.product_id,
+              product_name: product?.name || "Unknown",
+              master_lot_size: product?.lot_size || 0,
+              lots: item.quantity / (product?.lot_size || 1) + "",
+              quantity: item.quantity,
+              price: product?.price || 0,
+              lot_price: product?.lot_price || 0,
+            };
+          }
+        );
+        setBillItems(items);
+      } catch (e) {
+        console.error("Failed to parse pending order", e);
+      }
+      sessionStorage.removeItem('pending_order');
     }
-  }, [orderState, products, customers, navigate, location.pathname]);
+  }, [products, customers]);
 
   useEffect(() => {
     let result = bills;
@@ -435,6 +439,7 @@ export const Billing = () => {
     return {
       subtotal,
       grandTotal,
+      discount,
       ...taxDetails,
     };
   }, [billItems, discount, isGstBill, sgstPercent, cgstPercent, cessPercent]);
@@ -598,6 +603,7 @@ export const Billing = () => {
         content.style.padding = '0';
         
         // Generate PDF from the visible modal content
+        const html2pdf = (await import('html2pdf.js')).default;
         await html2pdf().from(content).set(pdfOptions).save();
         
         // Restore original mobile styling
@@ -659,7 +665,7 @@ export const Billing = () => {
           billDetails={billDetails}
           items={items}
           customerDetails={customerDetails}
-          sellerInfo={sellerInfo}
+          sellerInfo={sellerInfo || undefined}
         />
       </div>
     );
@@ -840,6 +846,7 @@ export const Billing = () => {
         content.style.padding = '0';
         
         // Generate PDF from the visible modal content
+        const html2pdf = (await import('html2pdf.js')).default;
         await html2pdf().from(content).set(pdfOptions).save();
         
         // Restore original mobile styling
@@ -900,7 +907,7 @@ export const Billing = () => {
           billDetails={billDetails}
           items={items}
           customerDetails={customerDetails}
-          sellerInfo={sellerInfo}
+          sellerInfo={sellerInfo || undefined}
         />
       </div>
     );

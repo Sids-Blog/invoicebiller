@@ -1,4 +1,8 @@
-import { sql } from './db';
+/**
+ * Client-side database utility module.
+ * All queries are proxied through the /api/query serverless endpoint.
+ * The DATABASE_URL never leaves the server — only query text and params are sent.
+ */
 
 /**
  * Neon serverless driver returns NUMERIC/DECIMAL columns as strings.
@@ -36,18 +40,36 @@ export const castRow = <T extends Record<string, any>>(row: T): T => {
   return result as T;
 };
 
+/**
+ * Send a SQL query to the serverless /api/query endpoint.
+ */
+const fetchQuery = async (query: string, params: any[] = []) => {
+  const res = await fetch('/api/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, params }),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok || json.error) {
+    throw new Error(json.error ?? 'Query failed');
+  }
+
+  return json.data as any[];
+};
+
 export const dbUtils = {
   /**
-   * Execute a raw SQL query.
+   * Execute a raw SQL query via the serverless API.
    * Automatically casts NUMERIC/DECIMAL string fields to JS numbers.
    */
   execute: async (query: string, params: any[] = []) => {
     try {
-      const result = await sql(query, params);
-      const rows = Array.isArray(result) ? result.map(castRow) : result;
+      const rows = await fetchQuery(query, params);
       return { data: rows, error: null };
     } catch (error: any) {
-      console.error('Neon Query Error:', error);
+      console.error('DB Query Error:', error);
       return { data: null, error: error.message };
     }
   },
@@ -60,7 +82,7 @@ export const dbUtils = {
     let query = `SELECT ${cols} FROM ${table}`;
     if (options.where) query += ` WHERE ${options.where}`;
     if (options.orderBy) query += ` ORDER BY ${options.orderBy}`;
-    
+
     return dbUtils.execute(query, options.params || []);
   },
 
@@ -71,7 +93,7 @@ export const dbUtils = {
     const keys = Object.keys(data);
     const values = Object.values(data);
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
-    
+
     const query = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`;
     return dbUtils.execute(query, values);
   },
@@ -83,7 +105,7 @@ export const dbUtils = {
     const keys = Object.keys(data);
     const values = Object.values(data);
     const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
-    
+
     // Offset the where parameters
     const query = `UPDATE ${table} SET ${setClause} WHERE ${where} RETURNING *`;
     return dbUtils.execute(query, [...values, ...whereParams]);
@@ -96,7 +118,7 @@ export const dbUtils = {
     const keys = Object.keys(params);
     const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
     const query = `SELECT * FROM ${name}(${placeholders})`;
-    
+
     return dbUtils.execute(query, Object.values(params));
   }
 };

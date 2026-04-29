@@ -1,3 +1,5 @@
+'use client';
+
 import { ReactNode, useState } from "react";
 import { Sidebar } from "@/components/organisms/Sidebar";
 import { Button } from "@/components/ui/button";

@@ -1221,24 +1221,24 @@ const InsightsManager = () => {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip
                         formatter={(value, name) => {
-                          const labels = {
+                          const labels: Record<string, string> = {
                             totalQuantity: 'Total Units',
                             thisMonth: 'This Month',
                             lastMonth: 'Last Month'
                           };
-                          return [value, labels[name] || name];
+                          return [value, labels[String(name)] || name];
                         }}
                         labelFormatter={(label) => `Product: ${label}`}
                       />
                       <Legend
                         wrapperStyle={{ fontSize: '12px' }}
                         formatter={(value) => {
-                          const labels = {
+                          const labels: Record<string, string> = {
                             totalQuantity: 'Total Units',
                             thisMonth: 'This Month',
                             lastMonth: 'Last Month'
                           };
-                          return labels[value] || value;
+                          return labels[String(value)] || value;
                         }}
                       />
                       <Bar dataKey="totalQuantity" fill="hsl(142 52% 45%)" name="totalQuantity" />
@@ -1304,24 +1304,24 @@ const InsightsManager = () => {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip
                         formatter={(value, name) => {
-                          const labels = {
+                          const labels: Record<string, string> = {
                             totalQuantity: 'Total Units',
                             thisMonth: 'This Month',
                             lastMonth: 'Last Month'
                           };
-                          return [value, labels[name] || name];
+                          return [value, labels[String(name)] || name];
                         }}
                         labelFormatter={(label) => `Product: ${label}`}
                       />
                       <Legend
                         wrapperStyle={{ fontSize: '12px' }}
                         formatter={(value) => {
-                          const labels = {
+                          const labels: Record<string, string> = {
                             totalQuantity: 'Total Units',
                             thisMonth: 'This Month',
                             lastMonth: 'Last Month'
                           };
-                          return labels[value] || value;
+                          return labels[String(value)] || value;
                         }}
                       />
                       <Bar dataKey="totalQuantity" fill="hsl(0 84.2% 60.2%)" name="totalQuantity" />
@@ -1413,7 +1413,7 @@ const InsightsManager = () => {
                       <div className="lg:border-l lg:pl-4">
                         <h4 className="font-medium text-sm text-muted-foreground mb-2">Overdue Bills:</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {customer.bills.map((bill) => (
+                          {customer.bills.map((bill: any) => (
                             <div key={bill.id} className="flex items-center justify-between text-sm bg-muted p-2 rounded">
                               <div>
                                 <p className="font-medium">{bill.invoice_number}</p>

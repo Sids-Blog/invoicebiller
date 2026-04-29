@@ -35,5 +35,5 @@ A professional billing management system for businesses. Streamline your invoici
 - TypeScript
 - Vite
 - Tailwind CSS
-- Supabase
+- Neon PostgreSQL
 - React Query

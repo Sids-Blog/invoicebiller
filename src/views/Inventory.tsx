@@ -21,7 +21,7 @@ import { n, fmt } from "@/lib/fmt";
 import { useAuth } from "@/hooks/useAuth";
 import { exportToCSV, formatCurrency } from "@/lib/csv-export";
 import { dbUtils } from "@/lib/db-utils";
-import { sql } from "@/lib/db";
+
 import { endOfMonth, format, startOfMonth } from "date-fns";
 import { AlertTriangle, Check, ChevronsUpDown, Download, Package, Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";

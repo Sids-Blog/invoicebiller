@@ -37,7 +37,7 @@ export const exportToCSV = <T>({ filename, headers, data, transformData }: CSVEx
       // Data rows
       ...processedData.map(row => 
         headers.map(header => {
-          const value = row[header] ?? '';
+          const value = (row as Record<string, unknown>)[header] ?? '';
           // Escape quotes and wrap in quotes if value contains comma, quote, or newline
           const escapedValue = String(value).replace(/"/g, '""');
           return /[,"\n\r]/.test(escapedValue) ? `"${escapedValue}"` : escapedValue;

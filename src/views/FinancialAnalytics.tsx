@@ -163,7 +163,7 @@ export const FinancialAnalytics = () => {
                 });
 
                 if (billItems) {
-                    billIdsWithProducts = [...new Set(billItems.map((item: any) => item.bill_id))];
+                    billIdsWithProducts = Array.from(new Set(billItems.map((item: any) => item.bill_id)));
                 }
             }
 

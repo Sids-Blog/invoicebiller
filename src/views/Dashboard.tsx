@@ -88,7 +88,7 @@ export const Dashboard = () => {
         variant: "destructive" 
       });
     } else {
-      setStats({ ...statsRes.data[0], ...extendedStatsRes.data[0] });
+      setStats({ ...(statsRes.data?.[0] || {}), ...(extendedStatsRes.data?.[0] || {}) });
     }
 
     if (productRes.error) {

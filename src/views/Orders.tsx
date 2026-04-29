@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,7 @@ interface Order {
 export const Orders = () => {
   const { toast } = useToast();
   const { role } = useAuth();
+  const router = useRouter();
   
   // Create Order states
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -657,11 +658,13 @@ export const Orders = () => {
                           {order.status === 'pending' && (
                             <>
                               {canGenerateBill() ? (
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link to="/billing" state={{ order: {...order, order_items: order.order_items.map(oi => ({...oi, quantity: calculateQuantity(oi.lots, oi.units, oi.products?.lot_size ?? 1)})) } }}>
-                                    <FileText className="h-4 w-4 mr-2" />
-                                    Generate Bill
-                                  </Link>
+                                <Button variant="outline" size="sm" onClick={() => {
+                                  const orderForBilling = {...order, order_items: order.order_items.map(oi => ({...oi, quantity: calculateQuantity(oi.lots, oi.units, oi.products?.lot_size ?? 1)}))}
+                                  sessionStorage.setItem('pending_order', JSON.stringify(orderForBilling));
+                                  router.push('/billing');
+                                }}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Generate Bill
                                 </Button>
                               ) : (
                                 <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">

@@ -1,4 +1,7 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+'use client';
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Package,
@@ -25,7 +28,7 @@ import { signOut } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
 const allNavigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ['admin', 'manager'] },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['admin', 'manager'] },
   { name: "Billing", href: "/billing", icon: Receipt, roles: ['admin', 'manager'] },
   { name: "Orders", href: "/orders", icon: ShoppingCart, roles: ['admin', 'manager', 'staff'] },
   { name: "Inventory", href: "/inventory", icon: Package, roles: ['admin', 'manager'] },
@@ -49,21 +52,16 @@ export const Sidebar = ({
   isCollapsed,
   onClose,
 }: SidebarProps) => {
-  const location = useLocation();
+  const pathname = usePathname();
   const { role } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
-
-  // Debug: Log the current role and navigation
-  console.log('Sidebar - Current role:', role);
-  console.log('Sidebar - All navigation items:', allNavigation);
 
   // If no role is assigned, show all navigation items (fallback)
   let navigation = role ? allNavigation.filter(item => item.roles.includes(role)) : allNavigation;
 
   // Fallback: if no navigation items are found, show at least basic items
   if (navigation.length === 0) {
-    console.warn('No navigation items found for role:', role, 'showing fallback navigation');
     navigation = [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ['admin', 'manager'] },
       { name: "Orders", href: "/orders", icon: ShoppingCart, roles: ['admin', 'manager', 'staff'] },
@@ -74,7 +72,7 @@ export const Sidebar = ({
   const handleLogout = async () => {
     signOut();
     toast({ title: "Logged out", description: "You have been successfully logged out." });
-    navigate('/auth');
+    router.push('/auth');
   };
 
   const SidebarContent = () => (
@@ -96,7 +94,7 @@ export const Sidebar = ({
             <div>
               <h1 className="text-xl font-bold text-primary">KillerBiller</h1>
               <p className="text-sm text-muted-foreground">
-                Billing & Inventory
+                Billing &amp; Inventory
               </p>
             </div>
           )}
@@ -117,13 +115,13 @@ export const Sidebar = ({
         <TooltipProvider>
           {navigation.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.href;
+            const isActive = pathname === item.href;
 
             return (
               <Tooltip key={item.name} delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Link
-                    to={item.href}
+                    href={item.href}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                       isActive

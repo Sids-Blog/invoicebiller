@@ -1,5 +1,5 @@
-import { BillItem } from '@/pages/Billing';
-import { Customer } from '@/pages/Customers';
+import { BillItem } from '@/views/Billing';
+import { Customer } from '@/views/Customers';
 import React from 'react';
 
 interface Bill {

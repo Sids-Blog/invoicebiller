@@ -1,5 +1,3 @@
-import { dbUtils } from './db-utils';
-
 const SESSION_KEY = 'kb_session';
 
 export interface AuthUser {
@@ -14,36 +12,29 @@ export interface AuthSession {
 
 /**
  * Sign in with email + password.
- * Compares password_hash stored in the Neon `users` table.
- * Uses pgcrypto's crypt() via a Postgres function for secure comparison.
+ * Delegates to the /api/auth/login serverless API route.
+ * Password is sent over HTTPS and verified server-side — never exposed.
  */
 export const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
-  const { data, error } = await dbUtils.execute(
-    `SELECT id, email, username, password_hash
-     FROM users
-     WHERE email = $1`,
-    [email]
-  );
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-  if (error) return { error };
-  if (!data || data.length === 0) return { error: 'Invalid email or password.' };
+    const data = await res.json();
 
-  const user = data[0];
+    if (!res.ok || data.error) {
+      return { error: data.error || 'Login failed' };
+    }
 
-  // Verify the password using Postgres crypt
-  const { data: verifyResult, error: verifyError } = await dbUtils.execute(
-    `SELECT (password_hash = crypt($1, password_hash)) AS is_valid FROM users WHERE id = $2`,
-    [password, user.id]
-  );
-
-  if (verifyError) return { error: verifyError };
-  if (!verifyResult || !verifyResult[0]?.is_valid) return { error: 'Invalid email or password.' };
-
-  const session: AuthSession = {
-    user: { id: user.id, email: user.email, username: user.username },
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return { error: null };
+    const session: AuthSession = data.session;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    return { error: null };
+  } catch {
+    return { error: 'Network error. Please try again.' };
+  }
 };
 
 /**
