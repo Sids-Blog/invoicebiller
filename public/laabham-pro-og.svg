@@ -1,0 +1,20 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#f8fafc"/>
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0E1F40;stop-opacity:0.05" />
+      <stop offset="100%" style="stop-color:#D4A017;stop-opacity:0.05" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  
+  <g transform="translate(450, 180) scale(3)">
+    <text x="27.5" y="34" font-family="Arial, sans-serif" font-weight="bold" font-size="38" fill="white" opacity="0.35" text-anchor="middle">₹</text>
+    <path d="M 0 0 L 0 40 L 40 40" stroke="#0E1F40" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 5 30 L 25 10 L 40 25 L 55 5" stroke="#D4A017" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 45 5 L 55 5 L 55 15" stroke="#D4A017" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <text x="600" y="420" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="#0E1F40">Laabham Pro</text>
+  <text x="600" y="480" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="#64748b">Modern Billing & Inventory Management</text>
+</svg>

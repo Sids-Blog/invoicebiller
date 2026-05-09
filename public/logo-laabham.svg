@@ -1,0 +1,19 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0E1F40;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D4A017;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Stylized L + Growth Arrow -->
+  <g transform="translate(15, 15)">
+    <text x="27.5" y="34" font-family="Arial, sans-serif" font-weight="bold" font-size="38" fill="white" opacity="0.35" text-anchor="middle">₹</text>
+    <path d="M 0 0 L 0 40 L 40 40" stroke="#0E1F40" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 5 30 L 25 10 L 40 25 L 55 5" stroke="#D4A017" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 45 5 L 55 5 L 55 15" stroke="#D4A017" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <text x="75" y="48" font-family="Arial, sans-serif" font-weight="bold" font-size="22" fill="#0E1F40">Laabham</text>
+  <text x="165" y="48" font-family="Arial, sans-serif" font-weight="bold" font-size="22" fill="#D4A017">Pro</text>
+</svg>
