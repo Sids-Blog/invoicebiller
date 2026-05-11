@@ -22,12 +22,15 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 
 import { BillItem, Bill, SellerInfo } from "@/lib/types";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Billing } from "@/components/billing/Billing";
 export const History = () => {
   const { toast } = useToast();
   const session = getSession();
   const company_id = session?.user?.company_id;
 
   const [listTab, setListTab] = useState<"invoice" | "quotation">("invoice");
+  const [editingBillId, setEditingBillId] = useState<string | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [sellerInfo, setSellerInfo] = useState<SellerInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -264,7 +267,10 @@ export const History = () => {
     {
       id: "actions",
       cell: ({ row }) => (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => setEditingBillId(row.original.id)} className="h-8 gap-1 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit
+          </Button>
           <Button variant="outline" size="sm" onClick={() => previewInvoice(row.original)} className="h-8 gap-1 shadow-sm">
             <Download className="h-3.5 w-3.5" /> PDF
           </Button>
@@ -305,6 +311,7 @@ export const History = () => {
   const activeFilterCount = [filterName, filterNumber, filterDateFrom, filterDateTo].filter(Boolean).length;
 
   return (
+    <>
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       <div className="flex flex-col gap-4 mb-6">
         <h1 className="text-2xl font-bold">History</h1>
@@ -405,5 +412,20 @@ export const History = () => {
         </CardContent>
       </Card>
     </div>
+      <Dialog open={!!editingBillId} onOpenChange={(open) => !open && setEditingBillId(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0 border-none bg-background">
+          {editingBillId && (
+            <Billing 
+              editId={editingBillId} 
+              onSuccess={() => {
+                setEditingBillId(null);
+                fetchData();
+              }} 
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+
   );
 };

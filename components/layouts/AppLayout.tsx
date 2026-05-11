@@ -1,6 +1,8 @@
 'use client';
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
+import { dbUtils } from "@/lib/db-utils";
+import { getSession } from "@/lib/auth";
 import { Sidebar } from "@/components/organisms/Sidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -15,6 +17,26 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const isMobile = useIsMobile();
+  const session = getSession();
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      if (!session?.user?.company_id) return;
+      try {
+        const res = await dbUtils.select("seller_info", {
+          where: "company_id = $1",
+          params: [session.user.company_id]
+        });
+        if (res.data?.[0]?.logo_url) {
+          setLogoUrl(res.data[0].logo_url);
+        }
+      } catch (err) {
+        console.error("Error fetching company logo:", err);
+      }
+    };
+    fetchLogo();
+  }, [session?.user?.company_id]);
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -44,11 +66,13 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       >
         <header className="sticky top-0 z-10 flex items-center justify-between h-16 px-4 bg-background/80 backdrop-blur-sm border-b border-border">
           <div className="flex items-center space-x-4 align-middle justify-center">
-            <img
-              src="/logo-laabham.svg"
-              alt="Laabham Pro Logo"
-              className="h-10 w-auto"
-            />
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt="Company Logo"
+                className="h-10 w-auto object-contain"
+              />
+            )}
           </div>
           
           <Button

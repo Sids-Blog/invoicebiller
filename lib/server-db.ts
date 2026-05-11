@@ -46,7 +46,22 @@ export const castRow = <T extends Record<string, any>>(row: T): T => {
  */
 export const serverQuery = async (query: string, params: any[] = []): Promise<any[]> => {
   const sql = getServerSql();
-  const result = await (sql as any).query(query, params);
-  const rows = Array.isArray(result) ? result.map(castRow) : result;
-  return rows;
+  try {
+    console.log('[serverQuery DEBUG] Executing query for params:', params);
+    const result = await (sql as any).query(query, params);
+    console.log('[serverQuery DEBUG] Raw result for params', params, 'is:', JSON.stringify(result).substring(0, 250));
+    
+    let rows: any[];
+    if (Array.isArray(result)) {
+      rows = result;
+    } else if (result && Array.isArray(result.rows)) {
+      rows = result.rows;
+    } else {
+      rows = [];
+    }
+    return rows.map(castRow);
+  } catch (error) {
+    console.error('[serverQuery ERROR]', error);
+    throw error;
+  }
 };

@@ -10,19 +10,6 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { OrbitalLoader } from "@/components/ui/orbital-loader";
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-
-const chartConfig = {
-  quotations: {
-    label: "Quotations",
-    color: "var(--chart-1)",
-  },
-  invoices: {
-    label: "Invoices",
-    color: "var(--chart-2)",
-  },
-} satisfies ChartConfig;
 
 export const Dashboard = () => {
   const router = useRouter();
@@ -37,7 +24,6 @@ export const Dashboard = () => {
     quotations: 0,
     invoices: 0,
   });
-  const [monthlyData, setMonthlyData] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -74,29 +60,6 @@ export const Dashboard = () => {
           quotations: quotationsCount,
           invoices: invoicesCount
         });
-
-        // Fetch monthly data for the chart (last 6 months)
-        const monthlyRes = await dbUtils.execute(`
-          SELECT 
-            TO_CHAR(date_of_issue, 'Mon') as month,
-            EXTRACT(MONTH FROM date_of_issue) as month_num,
-            EXTRACT(YEAR FROM date_of_issue) as year,
-            SUM(CASE WHEN type = 'quotation' THEN 1 ELSE 0 END) as quotations,
-            SUM(CASE WHEN type = 'invoice' THEN 1 ELSE 0 END) as invoices
-          FROM bills 
-          WHERE company_id = $1 
-            AND date_of_issue >= NOW() - INTERVAL '6 months'
-          GROUP BY year, month, month_num
-          ORDER BY year ASC, month_num ASC
-        `, [company_id]);
-
-        const formattedChartData = monthlyRes.data?.map((row: any) => ({
-          month: row.month,
-          quotations: parseInt(row.quotations || "0"),
-          invoices: parseInt(row.invoices || "0")
-        })) || [];
-        
-        setMonthlyData(formattedChartData);
 
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -192,7 +155,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Conversion Report Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="w-full">
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -230,38 +193,6 @@ export const Dashboard = () => {
               </div>
 
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Chart Section */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Activity Over Time</CardTitle>
-            <CardDescription>Quotations and Invoices created in the last 6 months</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {monthlyData.length > 0 ? (
-              <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                <BarChart accessibilityLayer data={monthlyData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="quotations" fill="var(--color-quotations)" radius={4} />
-                  <Bar dataKey="invoices" fill="var(--color-invoices)" radius={4} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm border rounded-lg border-dashed">
-                No activity data available for the last 6 months.
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

@@ -527,7 +527,19 @@ export function AdminPanel() {
   const filteredSessions = sessions.filter(s => {
     if (sessionsSearch) {
       const q = sessionsSearch.toLowerCase();
-      if (!s.user_email.toLowerCase().includes(q)) return false;
+      const searchableStr = [
+        s.id,
+        s.user_email,
+        s.username,
+        s.company_name,
+        s.ip_address,
+        s.user_agent,
+        s.terminated_by_email,
+        s.is_superadmin ? "superadmin" : "",
+        s.terminated_at ? "terminated" : "active"
+      ].filter(Boolean).join(" ").toLowerCase();
+      
+      if (!searchableStr.includes(q)) return false;
     }
     return true;
   });

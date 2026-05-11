@@ -87,7 +87,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
       const globalDiscProportion = billCalculations.subtotal > 0 ? (grossAmt / billCalculations.subtotal) * (billCalculations.discount || 0) : 0;
       const taxable = grossAmt - globalDiscProportion;
       const taxAmt = taxable * (rate / 100);
-      
+
       taxBreakdownMap[rate].taxable += taxable;
       taxBreakdownMap[rate].tax += taxAmt;
     });
@@ -543,6 +543,12 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
           display      : inline-block;
         }
 
+        .inv-bank-grid {
+          display      : grid;
+          grid-template-columns: 1fr 1fr;
+          column-gap   : 24px;
+        }
+
         .inv-bank-row {
           display      : grid;
           grid-template-columns: 90px 1fr;
@@ -626,10 +632,10 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
           <div className="inv-header">
             <div className="inv-header__supplier" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               {sellerInfo?.logo_url && (
-                <img 
-                  src={sellerInfo.logo_url} 
-                  alt="Company Logo" 
-                  style={{ height: '40px', width: 'auto', objectFit: 'contain', borderRadius: '4px', background: 'white', padding: '2px' }} 
+                <img
+                  src={sellerInfo.logo_url}
+                  alt="Company Logo"
+                  style={{ height: '40px', width: 'auto', objectFit: 'contain', borderRadius: '4px', background: 'white', padding: '2px' }}
                 />
               )}
               <div className="inv-header__logo-name">
@@ -643,240 +649,242 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
 
           <div className="inv-accent-bar"></div>
 
-        <div className="inv-supplier-strip">
-          <div className="inv-supplier-strip__field">
-            <label>Supplier</label>
-            <span>{sellerInfo?.company_name}</span>
-            <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              {sellerInfo?.address}
-            </div>
-          </div>
-          <div className="inv-supplier-strip__field">
-            <label>Contact</label>
-            <span>{sellerInfo?.contact_number || '—'}</span>
-            <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              {sellerInfo?.email || ''}
-            </div>
-          </div>
-          {!isQuotation && (
+          <div className="inv-supplier-strip">
             <div className="inv-supplier-strip__field">
-              <label>GSTIN</label>
-              <span className="gstin">{isGst && sellerInfo?.gst_number ? sellerInfo.gst_number : '—'}</span>
-              {sellerInfo?.pan && <div style={{ fontSize: '7.5px', color: 'var(--text-muted)', marginTop: '2px' }}>PAN: {sellerInfo.pan}</div>}
+              <label>Supplier</label>
+              <span>{sellerInfo?.company_name}</span>
+              <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {sellerInfo?.address}
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="inv-meta-customer">
-          <div className="inv-meta">
-            <div className="inv-meta-customer__section-label">Invoice Details</div>
-            <div className="inv-field-row">
-              <label>Invoice Number</label>
-              <span className="mono" style={{ fontSize: '10px', fontWeight: 600, color: 'var(--brand-primary)' }}>{billDetails.invoice_number}</span>
+            <div className="inv-supplier-strip__field">
+              <label>Contact</label>
+              <span>{sellerInfo?.contact_number || '—'}</span>
+              <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                {sellerInfo?.email || ''}
+              </div>
             </div>
-            <div className="inv-field-row">
-              <label>Date of Issue</label>
-              <span>{fmtDate(billDetails.date_of_bill || billDetails.created_at)}</span>
-            </div>
-          </div>
-
-          <div className="inv-customer">
-            <div className="inv-meta-customer__section-label">Billed To</div>
-            <div className="inv-field-row">
-              <label>Buyer Name</label>
-              <span style={{ fontWeight: 600 }}>{billDetails.customer_name}</span>
-            </div>
-            {isGst && (
-              <div className="inv-field-row">
+            {!isQuotation && (
+              <div className="inv-supplier-strip__field">
                 <label>GSTIN</label>
-                <span className="mono">{billDetails.customer_gstin || <span style={{ color: 'var(--text-muted)' }}>Unregistered (URP)</span>}</span>
+                <span className="gstin">{isGst && sellerInfo?.gst_number ? sellerInfo.gst_number : '—'}</span>
+                {sellerInfo?.pan && <div style={{ fontSize: '7.5px', color: 'var(--text-muted)', marginTop: '2px' }}>PAN: {sellerInfo.pan}</div>}
               </div>
             )}
-            <div className="inv-field-row">
-              <label>Billing Address</label>
-              <address>{billDetails.customer_address}</address>
+          </div>
+
+          <div className="inv-meta-customer">
+            <div className="inv-meta">
+              <div className="inv-meta-customer__section-label">Invoice Details</div>
+              <div className="inv-field-row">
+                <label>Invoice Number</label>
+                <span className="mono" style={{ fontSize: '10px', fontWeight: 600, color: 'var(--brand-primary)' }}>{billDetails.invoice_number}</span>
+              </div>
+              <div className="inv-field-row">
+                <label>Date of Issue</label>
+                <span>{fmtDate(billDetails.date_of_bill || billDetails.created_at)}</span>
+              </div>
+            </div>
+
+            <div className="inv-customer">
+              <div className="inv-meta-customer__section-label">Billed To</div>
+              <div className="inv-field-row">
+                <label>Buyer Name</label>
+                <span style={{ fontWeight: 600 }}>{billDetails.customer_name}</span>
+              </div>
+              {isGst && (
+                <div className="inv-field-row">
+                  <label>GSTIN</label>
+                  <span className="mono">{billDetails.customer_gstin || <span style={{ color: 'var(--text-muted)' }}>Unregistered (URP)</span>}</span>
+                </div>
+              )}
+              <div className="inv-field-row">
+                <label>Billing Address</label>
+                <address>{billDetails.customer_address}</address>
+              </div>
             </div>
           </div>
-        </div>
 
-        <table className="inv-items">
-          <thead>
-            <tr>
-              <th className="num" style={{ width: '28px' }}>#</th>
-              <th>Description of Goods / Services</th>
-              <th className="num" style={{ width: '36px' }}>Unit</th>
-              <th className="right" style={{ width: '36px' }}>Qty</th>
-              <th className="right" style={{ width: '70px' }}>Unit Price</th>
-              <th className="right" style={{ width: '70px' }}>Taxable Value</th>
-              {isGst && <th className="right" style={{ width: '42px' }}>GST%</th>}
-              {isGst && <th className="right" style={{ width: '68px' }}>Tax Amt</th>}
-              <th className="right" style={{ width: '72px' }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, i) => {
-              const grossAmt = item.quantity * item.price;
-              const globalDiscProportion = billCalculations.subtotal > 0 ? (grossAmt / billCalculations.subtotal) * (billCalculations.discount || 0) : 0;
-              const taxableValue = grossAmt - globalDiscProportion;
-              const taxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) || item.tax_rate || 0;
-              const taxAmt = isGst ? (taxableValue * taxRate / 100) : 0;
-              const lineTotal = taxableValue + taxAmt;
+          <table className="inv-items">
+            <thead>
+              <tr>
+                <th className="num" style={{ width: '28px' }}>#</th>
+                <th>Description of Goods / Services</th>
+                <th className="num" style={{ width: '36px' }}>Unit</th>
+                <th className="right" style={{ width: '36px' }}>Qty</th>
+                <th className="right" style={{ width: '70px' }}>Unit Price</th>
+                <th className="right" style={{ width: '70px' }}>Taxable Value</th>
+                {isGst && <th className="right" style={{ width: '42px' }}>GST%</th>}
+                {isGst && <th className="right" style={{ width: '68px' }}>Tax Amt</th>}
+                <th className="right" style={{ width: '72px' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, i) => {
+                const grossAmt = item.quantity * item.price;
+                const globalDiscProportion = billCalculations.subtotal > 0 ? (grossAmt / billCalculations.subtotal) * (billCalculations.discount || 0) : 0;
+                const taxableValue = grossAmt - globalDiscProportion;
+                const taxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) || item.tax_rate || 0;
+                const taxAmt = isGst ? (taxableValue * taxRate / 100) : 0;
+                const lineTotal = taxableValue + taxAmt;
 
-              return (
-                <tr key={i}>
-                  <td className="num">{i + 1}</td>
-                  <td>
-                    <div className="item-name">{item.product_name}</div>
-                    {item.additional_desc && <div className="item-desc">{item.additional_desc}</div>}
-                    {isGst && item.hsn_sac && (
-                      <span className="hsn-badge">{item.hsn_sac_type || 'HSN'}: {item.hsn_sac}</span>
-                    )}
-                  </td>
-                  <td className="center">{item.unit || 'pcs'}</td>
-                  <td className="right">{item.quantity}</td>
-                  <td className="right">₹{fmt(item.price)}</td>
-                  <td className="right">₹{fmt(taxableValue)}</td>
-                  {isGst && <td className="right">{taxRate}%</td>}
-                  {isGst && <td className="right">₹{fmt(taxAmt)}</td>}
-                  <td className="right" style={{ fontWeight: 800 }}>₹{fmt(lineTotal)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                return (
+                  <tr key={i}>
+                    <td className="num">{i + 1}</td>
+                    <td>
+                      <div className="item-name">{item.product_name}</div>
+                      {item.additional_desc && <div className="item-desc">{item.additional_desc}</div>}
+                      {isGst && item.hsn_sac && (
+                        <span className="hsn-badge">{item.hsn_sac_type || 'HSN'}: {item.hsn_sac}</span>
+                      )}
+                    </td>
+                    <td className="center">{item.unit || 'pcs'}</td>
+                    <td className="right">{item.quantity}</td>
+                    <td className="right">₹{fmt(item.price)}</td>
+                    <td className="right">₹{fmt(taxableValue)}</td>
+                    {isGst && <td className="right">{taxRate}%</td>}
+                    {isGst && <td className="right">₹{fmt(taxAmt)}</td>}
+                    <td className="right" style={{ fontWeight: 800 }}>₹{fmt(lineTotal)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         <div style={{ marginTop: 'auto' }}>
           <div className="inv-financials">
             <div className="inv-tax-breakdown">
-            {isGst && (
-              <>
-                <div className="inv-tax-breakdown__title">Tax Breakdown</div>
-                <table className="inv-tax-table">
-                  <thead>
-                    <tr>
-                      <th>GST Rate</th><th className="right">Taxable</th><th className="right">CGST %</th><th className="right">CGST Amt</th><th className="right">SGST %</th><th className="right">SGST Amt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {taxBreakdown.map((row, idx) => {
-                      return (
-                        <tr key={idx}>
-                          <td>{row.rate}%</td>
-                          <td className="right">₹{fmt(row.taxable)}</td>
-                          <td className="right">{row.rate / 2}%</td>
-                          <td className="right">₹{fmt(row.tax / 2)}</td>
-                          <td className="right">{row.rate / 2}%</td>
-                          <td className="right">₹{fmt(row.tax / 2)}</td>
-                        </tr>
-                      );
-                    })}
-                    {taxBreakdown.length > 0 && (
+              {isGst && (
+                <>
+                  <div className="inv-tax-breakdown__title">Tax Breakdown</div>
+                  <table className="inv-tax-table">
+                    <thead>
                       <tr>
-                        <td style={{ fontWeight: 600 }}>Total</td>
-                        <td className="right">₹{fmt(billCalculations.taxableValue)}</td>
-                        <td></td><td className="right">₹{fmt(billCalculations.cgst)}</td>
-                        <td></td><td className="right">₹{fmt(billCalculations.sgst)}</td>
+                        <th>GST Rate</th><th className="right">Taxable</th><th className="right">CGST %</th><th className="right">CGST Amt</th><th className="right">SGST %</th><th className="right">SGST Amt</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </>
-            )}
-            <div style={{ fontSize: '7.5px', color: 'var(--text-muted)', marginTop: '8px' }}>
-              {isGst && 'Tax computed on taxable value after discount.'}
+                    </thead>
+                    <tbody>
+                      {taxBreakdown.map((row, idx) => {
+                        return (
+                          <tr key={idx}>
+                            <td>{row.rate}%</td>
+                            <td className="right">₹{fmt(row.taxable)}</td>
+                            <td className="right">{row.rate / 2}%</td>
+                            <td className="right">₹{fmt(row.tax / 2)}</td>
+                            <td className="right">{row.rate / 2}%</td>
+                            <td className="right">₹{fmt(row.tax / 2)}</td>
+                          </tr>
+                        );
+                      })}
+                      {taxBreakdown.length > 0 && (
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>Total</td>
+                          <td className="right">₹{fmt(billCalculations.taxableValue)}</td>
+                          <td></td><td className="right">₹{fmt(billCalculations.cgst)}</td>
+                          <td></td><td className="right">₹{fmt(billCalculations.sgst)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              <div style={{ fontSize: '7.5px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                {isGst && 'Tax computed on taxable value after discount.'}
+              </div>
             </div>
-          </div>
             <div className="inv-totals">
-            <div className="inv-totals__row">
-              <label>Gross Amount</label>
-              <span>₹{fmt(billCalculations.subtotal)}</span>
-            </div>
-            {billCalculations.discount > 0 && (
-              <div className="inv-totals__row discount">
-                <label>Total Discount</label>
-                <span>₹{fmt(billCalculations.discount)}</span>
-              </div>
-            )}
-            {isGst && (
-              <div className="inv-totals__row subtotal">
-                <label>Total Taxable Value</label>
-                <span>₹{fmt(billCalculations.taxableValue)}</span>
-              </div>
-            )}
-            {isGst && (
-              <>
-                <div className="inv-totals__row">
-                  <label>CGST</label>
-                  <span>₹{fmt(billCalculations.cgst)}</span>
-                </div>
-                <div className="inv-totals__row">
-                  <label>SGST</label>
-                  <span>₹{fmt(billCalculations.sgst)}</span>
-                </div>
-              </>
-            )}
-            {isGst && billCalculations.cess > 0 && (
               <div className="inv-totals__row">
-                <label>Cess</label>
-                <span>₹{fmt(billCalculations.cess)}</span>
+                <label>Gross Amount</label>
+                <span>₹{fmt(billCalculations.subtotal)}</span>
               </div>
-            )}
-          </div>
-        </div>
-
-        <div className="inv-grand-total">
-          <div className="inv-grand-total__label">
-            <small>Total Amount</small>
-            Grand Total
-          </div>
-          <div className="inv-grand-total__amount">
-            <span className="currency">₹</span>
-            <span className="figure">{fmt(billCalculations.grandTotal)}</span>
-          </div>
-        </div>
-
-        <div className="inv-amount-words">
-          <strong>Amount in Words:</strong> {numberToWords(billCalculations.grandTotal)}
-        </div>
-
-        {!isQuotation && (
-          <div className="inv-footer">
-            {sellerInfo?.bank_account_number && (
-              <div className="inv-footer__bank">
-                <div className="inv-footer__section-label">Bank Details</div>
-                <div className="inv-bank-row"><label>Bank Name</label><span>{sellerInfo.branch?.split(',')[0] || sellerInfo.bank_account_number ? 'Bank' : ''}</span></div>
-                {sellerInfo.account_holder_name && <div className="inv-bank-row"><label>Account Name</label><span>{sellerInfo.account_holder_name}</span></div>}
-                <div className="inv-bank-row"><label>Account No.</label><span className="mono">{sellerInfo.bank_account_number}</span></div>
-                <div className="inv-bank-row"><label>IFSC Code</label><span className="mono">{sellerInfo.ifsc_code}</span></div>
-                <div className="inv-bank-row"><label>Branch</label><span>{sellerInfo.branch}</span></div>
-                <div className="inv-bank-row"><label>Account Type</label><span>Current</span></div>
-                {sellerInfo.upi_id && (
-                  <div className="inv-upi">
-                    <span className="inv-upi__label">UPI</span>
-                    <span className="inv-upi__id">{sellerInfo.upi_id}</span>
+              {billCalculations.discount > 0 && (
+                <div className="inv-totals__row discount">
+                  <label>Total Discount</label>
+                  <span>₹{fmt(billCalculations.discount)}</span>
+                </div>
+              )}
+              {isGst && (
+                <div className="inv-totals__row subtotal">
+                  <label>Total Taxable Value</label>
+                  <span>₹{fmt(billCalculations.taxableValue)}</span>
+                </div>
+              )}
+              {isGst && (
+                <>
+                  <div className="inv-totals__row">
+                    <label>CGST</label>
+                    <span>₹{fmt(billCalculations.cgst)}</span>
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="inv-totals__row">
+                    <label>SGST</label>
+                    <span>₹{fmt(billCalculations.sgst)}</span>
+                  </div>
+                </>
+              )}
+              {isGst && billCalculations.cess > 0 && (
+                <div className="inv-totals__row">
+                  <label>Cess</label>
+                  <span>₹{fmt(billCalculations.cess)}</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
 
-        {(sellerInfo?.payment_terms || sellerInfo?.terms_and_conditions) && (
-          <div className="inv-notes-strip">
-            {sellerInfo?.payment_terms && (
-              <div><strong>Payment Terms:</strong> {sellerInfo.payment_terms}</div>
-            )}
-            {sellerInfo?.terms_and_conditions && (
-              <div style={{ marginTop: sellerInfo?.payment_terms ? '4px' : '0' }}><strong>Terms & Conditions:</strong> {sellerInfo.terms_and_conditions}</div>
-            )}
+          <div className="inv-grand-total">
+            <div className="inv-grand-total__label">
+              <small>Total Amount</small>
+              Grand Total
+            </div>
+            <div className="inv-grand-total__amount">
+              <span className="currency">₹</span>
+              <span className="figure">{fmt(billCalculations.grandTotal)}</span>
+            </div>
           </div>
-        )}
 
-        <div className="inv-compliance-bar">
-          <span>This is a computer-generated document. No signature required unless noted above.</span>
-          {isGst && <span className="powered">GST Rule 46 Compliant</span>}
-        </div>
+          <div className="inv-amount-words">
+            <strong>Amount in Words:</strong> {numberToWords(billCalculations.grandTotal)}
+          </div>
+
+          {!isQuotation && (
+            <div className="inv-footer">
+              {(sellerInfo?.account_no || sellerInfo?.bank_account_number) && (
+                <div className="inv-footer__bank">
+                  <div className="inv-footer__section-label">Bank Details</div>
+                  <div className="inv-bank-grid">
+                    <div className="inv-bank-row"><label>Bank Name</label><span>{sellerInfo.branch?.split(',')[0] || sellerInfo.account_no || sellerInfo.bank_account_number ? 'Bank' : ''}</span></div>
+                    {sellerInfo.account_holder_name && <div className="inv-bank-row"><label>Account Name</label><span>{sellerInfo.account_holder_name}</span></div>}
+                    <div className="inv-bank-row"><label>Account No.</label><span className="mono">{sellerInfo.account_no || sellerInfo.bank_account_number}</span></div>
+                    <div className="inv-bank-row"><label>IFSC Code</label><span className="mono">{sellerInfo.ifsc_code}</span></div>
+                    <div className="inv-bank-row"><label>Branch</label><span>{sellerInfo.branch}</span></div>
+                    <div className="inv-bank-row"><label>Account Type</label><span>Current</span></div>
+                  </div>
+                  {sellerInfo.upi_id && (
+                    <div className="inv-upi">
+                      <span className="inv-upi__label">UPI</span>
+                      <span className="inv-upi__id">{sellerInfo.upi_id}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(sellerInfo?.payment_terms || sellerInfo?.terms_and_conditions) && (
+            <div className="inv-notes-strip">
+              {sellerInfo?.payment_terms && (
+                <div><strong>Payment Terms:</strong> {sellerInfo.payment_terms}</div>
+              )}
+              {sellerInfo?.terms_and_conditions && (
+                <div style={{ marginTop: sellerInfo?.payment_terms ? '4px' : '0' }}><strong>Terms & Conditions:</strong> {sellerInfo.terms_and_conditions}</div>
+              )}
+            </div>
+          )}
+
+          <div className="inv-compliance-bar">
+            <span>This is a computer-generated document. No signature required unless noted above.</span>
+            {isGst && <span className="powered">GST Rule 46 Compliant</span>}
+          </div>
         </div>
       </div>
     </>

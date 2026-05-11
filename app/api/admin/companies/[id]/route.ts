@@ -16,7 +16,7 @@ export async function PUT(
   if ('error' in authResult) return authResult.error;
 
   try {
-    const companyId = params.id;
+    const companyId = (await params).id;
     const body = await req.json();
     
     const {
@@ -183,7 +183,7 @@ export async function DELETE(
   if ('error' in authResult) return authResult.error;
 
   try {
-    const companyId = params.id;
+    const companyId = (await params).id;
     const { searchParams } = new URL(req.url);
     const actor_id = searchParams.get('actor_id');
 

@@ -195,7 +195,12 @@ export function CompanyDetailsFull({ company, onBack }: CompanyDetailsFullProps)
       const statsRes = await fetch(`/api/admin/companies/${company.id}/stats`);
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStats(statsData);
+        setStats({
+          totalRevenue: statsData.stats?.total_revenue || 0,
+          totalInvoices: statsData.stats?.invoice_count || 0,
+          totalQuotations: statsData.stats?.quotation_count || 0,
+          recentActivity: statsData.recent_activity || []
+        });
       }
 
       // Fetch company bills

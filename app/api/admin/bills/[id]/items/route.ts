@@ -16,7 +16,7 @@ export async function GET(
   if ("error" in authResult) return authResult.error;
 
   try {
-    const billId = params.id;
+    const billId = (await params).id;
 
     if (!billId) {
       return NextResponse.json(

@@ -16,7 +16,7 @@ export async function GET(
   if ("error" in authResult) return authResult.error;
 
   try {
-    const companyId = params.id;
+    const companyId = (await params).id;
 
     if (!companyId) {
       return NextResponse.json({ error: 'Company ID is required' }, { status: 400 });

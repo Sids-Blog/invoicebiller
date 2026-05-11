@@ -38,10 +38,15 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BillItem, Product, Bill, SellerInfo } from "@/lib/types";
+import { useSearchParams, useRouter } from "next/navigation";
 
-export const Billing = () => {
+export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, onSuccess?: () => void } = {}) => {
   const { toast } = useToast();
   const session = getSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const editId = propEditId || searchParams.get("editId");
+  const [editingInvoiceNumber, setEditingInvoiceNumber] = useState("");
   const company_id = session?.user?.company_id;
 
   const [createTab, setCreateTab] = useState<"invoice" | "quotation">("invoice");
@@ -56,7 +61,7 @@ export const Billing = () => {
   const [discount, setDiscount] = useState(0);
   const [comments, setComments] = useState("");
   const [isGstBill, setIsGstBill] = useState(false);
-  
+
   const [sgstPercent, setSgstPercent] = useState(9);
   const [cgstPercent, setCgstPercent] = useState(9);
   const [cessPercent, setCessPercent] = useState(0);
@@ -65,7 +70,7 @@ export const Billing = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sellerInfo, setSellerInfo] = useState<SellerInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [productSearchOpen, setProductSearchOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -83,15 +88,47 @@ export const Billing = () => {
       params: [session.user.company_id]
     });
 
-    const [productRes, sellerInfoRes] = await Promise.all([
+    const billPromise = editId
+      ? dbUtils.select("bills", { where: "id = $1", params: [editId] })
+      : Promise.resolve({ data: null, error: null });
+
+    const billItemsPromise = editId
+      ? dbUtils.select("bill_items", { where: "bill_id = $1", params: [editId] })
+      : Promise.resolve({ data: null, error: null });
+
+    const [productRes, sellerInfoRes, billRes, billItemsRes] = await Promise.all([
       productPromise,
       sellerInfoPromise,
+      billPromise,
+      billItemsPromise
     ]);
 
     if (productRes.error) {
       toast({ title: "Error fetching products", description: productRes.error, variant: "destructive" });
     } else {
       setProducts((productRes.data || []).map(p => castRow(p)) as Product[]);
+      if (editId && billRes?.data?.[0]) {
+        const bill = castRow(billRes.data[0]);
+        setCreateTab(bill.type);
+        setCustomerName(bill.customer_name || "");
+        setCustomerPhone(bill.customer_phone || "");
+        setCustomerAddress(bill.customer_address || "");
+        setCustomerGstin(bill.customer_gstin || "");
+        setDiscount(Number(bill.discount) || 0);
+        setIsGstBill(bill.is_gst_bill || false);
+        setComments(bill.comments || "");
+        setSgstPercent(Number(bill.sgst_percentage) || 9);
+        setCgstPercent(Number(bill.cgst_percentage) || 9);
+        setCessPercent(Number(bill.cess_percentage) || 0);
+        setEditingInvoiceNumber(bill.invoice_number);
+      }
+      if (editId && billItemsRes?.data) {
+        setBillItems(billItemsRes.data.map(item => ({
+          ...castRow(item),
+          price: Number(item.price),
+          quantity: Number(item.quantity)
+        })));
+      }
     }
 
     if (sellerInfoRes.error) {
@@ -101,7 +138,7 @@ export const Billing = () => {
     }
 
     setLoading(false);
-  }, [session?.user?.id, toast]);
+  }, [session?.user?.id, toast, editId]);
 
   useEffect(() => {
     fetchData();
@@ -115,7 +152,7 @@ export const Billing = () => {
     const cgst = product.cgst_rate ?? sellerInfo?.default_cgst_pct ?? 9;
     const sgst = product.sgst_rate ?? sellerInfo?.default_sgst_pct ?? 9;
     const cess = product.cess_rate ?? sellerInfo?.default_cess_pct ?? 0;
-    
+
     // The price in the product table is inclusive of tax.
     // If GST is enabled, we reduce the price to its taxable base so the final total matches.
     const totalTaxRate = cgst + sgst + cess;
@@ -175,7 +212,7 @@ export const Billing = () => {
         const itemGross = item.quantity * item.price;
         const globalDiscProportion = subtotal > 0 ? (itemGross / subtotal) * discount : 0;
         const itemTaxable = itemGross - globalDiscProportion;
-        
+
         const effectiveCgstRate = item.cgst_rate ?? 9;
         const effectiveSgstRate = item.sgst_rate ?? 9;
         const effectiveCessRate = item.cess_rate ?? 0;
@@ -183,7 +220,7 @@ export const Billing = () => {
         const itemCgst = itemTaxable * (effectiveCgstRate / 100);
         const itemSgst = itemTaxable * (effectiveSgstRate / 100);
         const itemCess = itemTaxable * (effectiveCessRate / 100);
-        
+
         cgst += itemCgst;
         sgst += itemSgst;
         cess += itemCess;
@@ -217,22 +254,25 @@ export const Billing = () => {
     setLoading(true);
 
     // Generate invoice number using the new numbering system
-    const invoiceNumberRes = await dbUtils.rpc('generate_invoice_number', {
-      company_id: company_id,
-      type: createTab // 'invoice' or 'quotation'
-    });
-
-    if (invoiceNumberRes.error || !invoiceNumberRes.data || invoiceNumberRes.data.length === 0) {
-      toast({ 
-        title: "Error generating invoice number", 
-        description: invoiceNumberRes.error || "Failed to generate invoice number. Please ensure company has a prefix set.", 
-        variant: "destructive" 
+    let generatedInvoiceNumber = editingInvoiceNumber;
+    if (!editId) {
+      const invoiceNumberRes = await dbUtils.rpc('generate_invoice_number', {
+        company_id: company_id,
+        type: createTab // 'invoice' or 'quotation'
       });
-      setLoading(false);
-      return;
-    }
 
-    const generatedInvoiceNumber = invoiceNumberRes.data[0].generate_invoice_number;
+      if (invoiceNumberRes.error || !invoiceNumberRes.data || invoiceNumberRes.data.length === 0) {
+        toast({
+          title: "Error generating invoice number",
+          description: invoiceNumberRes.error || "Failed to generate invoice number. Please ensure company has a prefix set.",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      generatedInvoiceNumber = invoiceNumberRes.data[0].generate_invoice_number;
+    }
 
     const billPayload = {
       company_id,
@@ -258,7 +298,12 @@ export const Billing = () => {
       comments,
     };
 
-    const billRes = await dbUtils.insert("bills", billPayload);
+    let billRes;
+    if (editId) {
+      billRes = await dbUtils.update("bills", { ...billPayload, updated_by: session.user.id }, "id = $1", [editId]);
+    } else {
+      billRes = await dbUtils.insert("bills", billPayload);
+    }
 
     if (billRes.error || !billRes.data || billRes.data.length === 0) {
       toast({ title: "Error creating bill", description: billRes.error || "Unknown error", variant: "destructive" });
@@ -267,6 +312,9 @@ export const Billing = () => {
     }
 
     const billId = billRes.data[0].id;
+    if (editId) {
+      await dbUtils.execute("DELETE FROM bill_items WHERE bill_id = $1", [editId]);
+    }
 
     for (const item of billItems) {
       await dbUtils.insert("bill_items", {
@@ -294,9 +342,12 @@ export const Billing = () => {
       new_data: billPayload,
     });
 
-    toast({ title: "Success", description: `${createTab === 'quotation' ? 'Quotation' : 'Invoice'} created successfully!` });
-    
-    // Reset form
+    toast({ title: editId ? "Bill Updated" : "Bill Created", description: editId ? "Successfully updated bill." : "Successfully created bill." });
+    if (onSuccess) {
+      onSuccess();
+    } else if (editId) {
+      router.push("/history");
+    }
     setCustomerName("");
     setCustomerPhone("");
     setCustomerAddress("");
@@ -415,118 +466,118 @@ export const Billing = () => {
           <TabsTrigger value="invoice">Invoice</TabsTrigger>
           <TabsTrigger value="quotation">Quotation</TabsTrigger>
         </TabsList>
-            
-            <Card className="shadow-sm">
-              <CardHeader className="border-b bg-muted/10 pb-4">
-                <CardTitle className="text-xl">Create New {createTab === "invoice" ? "Invoice" : "Quotation"}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                
+
+        <Card className="shadow-sm">
+          <CardHeader className="border-b bg-muted/10 pb-4">
+            <CardTitle className="text-xl">Create New {createTab === "invoice" ? "Invoice" : "Quotation"}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+
+            {createTab === "invoice" && (
+              <div className="flex items-center space-x-6">
+                <ToggleSwitch
+                  label="Apply GST"
+                  id="isGstBill"
+                  checked={isGstBill}
+                  onChange={(e) => setIsGstBill(e.target.checked)}
+                />
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Customer Details</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={createTab === "quotation" ? "col-span-2 space-y-2" : "space-y-2"}>
+                  <Label>Customer Name *</Label>
+                  <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Name" />
+                </div>
                 {createTab === "invoice" && (
-                  <div className="flex items-center space-x-6">
-                    <ToggleSwitch 
-                      label="Apply GST" 
-                      id="isGstBill" 
-                      checked={isGstBill} 
-                      onChange={(e) => setIsGstBill(e.target.checked)} 
-                    />
+                  <div className="space-y-2">
+                    <Label>Phone Number</Label>
+                    <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Phone" />
+                  </div>
+                )}
+                {createTab === "invoice" && (
+                  <div className="col-span-2 space-y-2">
+                    <Label>Address</Label>
+                    <Textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="Full Address" rows={2} />
+                  </div>
+                )}
+              </div>
+
+              {isCurrentlyGst && (
+                <div className="grid grid-cols-1 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Customer GSTIN</Label>
+                    <Input value={customerGstin} onChange={e => setCustomerGstin(e.target.value)} placeholder="GST Number" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {renderProductSelectionAndTable()}
+
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Summary</h3>
+
+              {isCurrentlyGst && (
+                <div className="grid grid-cols-3 gap-4 mb-4 bg-muted/30 p-4 rounded-lg">
+                  <div className="space-y-2">
+                    <Label>CGST %</Label>
+                    <NumericInput value={cgstPercent} onChange={(v) => setCgstPercent(v)} decimals={2} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>SGST %</Label>
+                    <NumericInput value={sgstPercent} onChange={(v) => setSgstPercent(v)} decimals={2} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CESS %</Label>
+                    <NumericInput value={cessPercent} onChange={(v) => setCessPercent(v)} decimals={2} />
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-muted/30 p-4 rounded-lg space-y-2 border">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>Rs. {billCalculations.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Discount (Rs.):</span>
+                  <NumericInput value={discount} onChange={(v) => setDiscount(v)} decimals={2} className="w-24 h-8 text-right bg-background" />
+                </div>
+
+                {isCurrentlyGst && (
+                  <div className="pt-2 border-t border-border/50 mt-2 space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Taxable Value:</span><span>Rs. {billCalculations.taxableValue.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>CGST:</span><span>Rs. {billCalculations.cgst.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>SGST:</span><span>Rs. {billCalculations.sgst.toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Customer Details</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={createTab === "quotation" ? "col-span-2 space-y-2" : "space-y-2"}>
-                      <Label>Customer Name *</Label>
-                      <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Name" />
-                    </div>
-                    {createTab === "invoice" && (
-                      <div className="space-y-2">
-                        <Label>Phone Number</Label>
-                        <Input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Phone" />
-                      </div>
-                    )}
-                    {createTab === "invoice" && (
-                      <div className="col-span-2 space-y-2">
-                        <Label>Address</Label>
-                        <Textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} placeholder="Full Address" rows={2} />
-                      </div>
-                    )}
-                  </div>
-                  
-                  {isCurrentlyGst && (
-                    <div className="grid grid-cols-1 gap-4 mt-4">
-                      <div className="space-y-2">
-                        <Label>Customer GSTIN</Label>
-                        <Input value={customerGstin} onChange={e => setCustomerGstin(e.target.value)} placeholder="GST Number" />
-                      </div>
-                    </div>
-                  )}
+                <div className="flex justify-between font-bold text-lg pt-2 border-t border-border mt-2">
+                  <span>Grand Total:</span>
+                  <span className="text-primary">Rs. {billCalculations.grandTotal.toFixed(2)}</span>
                 </div>
+              </div>
+            </div>
 
-                {renderProductSelectionAndTable()}
+            <div className="space-y-2">
+              <Label>Comments / Notes</Label>
+              <Textarea placeholder="Any additional notes..." value={comments} onChange={(e) => setComments(e.target.value)} rows={2} />
+            </div>
 
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Summary</h3>
-                  
-                  {isCurrentlyGst && (
-                    <div className="grid grid-cols-3 gap-4 mb-4 bg-muted/30 p-4 rounded-lg">
-                      <div className="space-y-2">
-                        <Label>CGST %</Label>
-                        <NumericInput value={cgstPercent} onChange={(v) => setCgstPercent(v)} decimals={2} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>SGST %</Label>
-                        <NumericInput value={sgstPercent} onChange={(v) => setSgstPercent(v)} decimals={2} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>CESS %</Label>
-                        <NumericInput value={cessPercent} onChange={(v) => setCessPercent(v)} decimals={2} />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-muted/30 p-4 rounded-lg space-y-2 border">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal:</span>
-                      <span>Rs. {billCalculations.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">Discount (Rs.):</span>
-                      <NumericInput value={discount} onChange={(v) => setDiscount(v)} decimals={2} className="w-24 h-8 text-right bg-background" />
-                    </div>
-                    
-                    {isCurrentlyGst && (
-                      <div className="pt-2 border-t border-border/50 mt-2 space-y-1">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Taxable Value:</span><span>Rs. {billCalculations.taxableValue.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>CGST:</span><span>Rs. {billCalculations.cgst.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>SGST:</span><span>Rs. {billCalculations.sgst.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between font-bold text-lg pt-2 border-t border-border mt-2">
-                      <span>Grand Total:</span>
-                      <span className="text-primary">Rs. {billCalculations.grandTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Comments / Notes</Label>
-                  <Textarea placeholder="Any additional notes..." value={comments} onChange={(e) => setComments(e.target.value)} rows={2} />
-                </div>
-
-                <Button onClick={handleCreateBill} disabled={loading || billItems.length === 0 || !customerName} className="w-full text-lg h-12" size="lg">
-                  Generate {createTab === "invoice" ? "Invoice" : "Quotation"}
-                </Button>
-              </CardContent>
-            </Card>
+            <Button onClick={handleCreateBill} disabled={loading || billItems.length === 0 || !customerName} className="w-full text-lg h-12" size="lg">
+              {loading ? "Processing..." : (editId ? `Edit ${createTab === "invoice" ? "Invoice" : "Quotation"}` : `Generate ${createTab === "invoice" ? "Invoice" : "Quotation"}`)}
+            </Button>
+          </CardContent>
+        </Card>
       </Tabs>
     </div>
   );

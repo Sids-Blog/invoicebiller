@@ -38,13 +38,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#D4A017] text-[#0E1F40] font-bold text-sm shadow-sm border-2 border-[#D4A017] flex-shrink-0">
-              ₹
-            </div>
+            <img
+              src="/favicon-laabham.svg"
+              alt="Logo"
+              className="w-10 h-10 rounded-lg shadow-sm flex-shrink-0"
+            />
             <div className="flex items-center gap-2">
-              <span className="font-serif font-medium text-foreground">Laabham</span>
-              <span className="font-bold text-[#D4A017]">Pro</span>
-              <span className="text-muted-foreground">·</span>
+              <span className="font-serif text-xl font-medium text-[#0E1F40] dark:text-white">Laabham</span>
+              <span className="font-bold text-xl text-[#D4A017]">Pro</span>
+              <span className="text-muted-foreground mx-1">·</span>
               <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
                 <ShieldAlert className="h-4 w-4" />
                 Super Admin
