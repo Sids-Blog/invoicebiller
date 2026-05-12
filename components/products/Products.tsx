@@ -55,7 +55,7 @@ export const Products = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
   const [page, setPage] = useState(1);
-  const LIMIT = 15;
+  const LIMIT = 10;
   const [sellerInfo, setSellerInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

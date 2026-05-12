@@ -15,6 +15,8 @@ interface InvoiceTemplateProps {
     subtotal: number;
     grandTotal: number;
     discount: number;
+    roundOff?: number;
+    roundedTotal?: number;
   };
   billDetails: Bill;
   items: BillItem[];
@@ -664,11 +666,17 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
                 {sellerInfo?.email || ''}
               </div>
             </div>
-            {!isQuotation && (
+            {!isQuotation && isGst && (
               <div className="inv-supplier-strip__field">
                 <label>GSTIN</label>
-                <span className="gstin">{isGst && sellerInfo?.gst_number ? sellerInfo.gst_number : '—'}</span>
+                <span className="gstin">{sellerInfo?.gst_number ? sellerInfo.gst_number : '—'}</span>
                 {sellerInfo?.pan && <div style={{ fontSize: '7.5px', color: 'var(--text-muted)', marginTop: '2px' }}>PAN: {sellerInfo.pan}</div>}
+              </div>
+            )}
+            {!isQuotation && !isGst && sellerInfo?.pan && (
+              <div className="inv-supplier-strip__field">
+                <label>PAN</label>
+                <span className="gstin">{sellerInfo.pan}</span>
               </div>
             )}
           </div>
@@ -689,7 +697,7 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
             <div className="inv-customer">
               <div className="inv-meta-customer__section-label">Billed To</div>
               <div className="inv-field-row">
-                <label>Buyer Name</label>
+                <label>Name</label>
                 <span style={{ fontWeight: 600 }}>{billDetails.customer_name}</span>
               </div>
               {isGst && (
@@ -828,6 +836,12 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
                   <span>₹{fmt(billCalculations.cess)}</span>
                 </div>
               )}
+              {billCalculations.roundOff !== undefined && billCalculations.roundOff !== 0 && (
+                <div className="inv-totals__row" style={{ fontStyle: 'italic', opacity: 0.8 }}>
+                  <label>Round Off</label>
+                  <span>{(billCalculations.roundOff > 0 ? '+' : '') + fmt(billCalculations.roundOff)}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -838,12 +852,12 @@ const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({ billCalculations, bil
             </div>
             <div className="inv-grand-total__amount">
               <span className="currency">₹</span>
-              <span className="figure">{fmt(billCalculations.grandTotal)}</span>
+              <span className="figure">{fmt(billCalculations.roundedTotal ?? billCalculations.grandTotal)}</span>
             </div>
           </div>
 
           <div className="inv-amount-words">
-            <strong>Amount in Words:</strong> {numberToWords(billCalculations.grandTotal)}
+            <strong>Amount in Words:</strong> {numberToWords(billCalculations.roundedTotal ?? billCalculations.grandTotal)}
           </div>
 
           {!isQuotation && (

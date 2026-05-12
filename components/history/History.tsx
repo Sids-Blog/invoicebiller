@@ -44,7 +44,7 @@ export const History = () => {
 
   const [page, setPage] = useState(1);
   const [totalBills, setTotalBills] = useState(0);
-  const LIMIT = 15;
+  const LIMIT = 10;
 
   const fetchData = useCallback(async () => {
     if (!company_id) return;
@@ -220,10 +220,20 @@ export const History = () => {
       }
     }
 
+    // Round off — use stored value if available, otherwise calculate
+    const storedRoundOff = Number(billDetails.round_off_amount || 0);
+    const rawTotal = taxableValue + cgst + sgst + cess;
+    const roundOff = storedRoundOff !== 0 ? storedRoundOff : (Math.round(rawTotal) - rawTotal);
+    const roundedTotal = storedRoundOff !== 0 ? Number(billDetails.total_amount) : Math.round(rawTotal);
+
     root.render(
       <InvoiceTemplate
         billCalculations={{
-          sgst, cgst, cess, taxableValue, subtotal, grandTotal: billDetails.total_amount, discount: globalDiscount
+          sgst, cgst, cess, taxableValue, subtotal,
+          grandTotal: rawTotal,
+          discount: globalDiscount,
+          roundOff,
+          roundedTotal,
         }}
         billDetails={billDetails}
         items={items}

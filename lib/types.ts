@@ -80,6 +80,7 @@ export interface Bill {
   cgst_amount?: number;
   sgst_amount?: number;
   cess_amount?: number;
+  round_off_amount?: number;
 }
 
 export interface AuditLog {

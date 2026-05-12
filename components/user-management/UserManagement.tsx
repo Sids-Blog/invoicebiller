@@ -38,7 +38,7 @@ const UserManagement = () => {
   
   const [page, setPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const LIMIT = 15;
+  const LIMIT = 10;
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);

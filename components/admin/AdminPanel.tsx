@@ -42,6 +42,7 @@ import {
   XCircle, CheckCircle2, Clock, Download, Search, Filter, ChevronDown,
   DatabaseBackup,
 } from 'lucide-react';
+import { NumberedPagination } from '@/components/ui/numbered-pagination';
 
 // ─── Types ───────────────────────────────────────────────────
 interface Company {
@@ -163,6 +164,13 @@ export function AdminPanel() {
   // Company details view
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showCompanyDetails, setShowCompanyDetails] = useState(false);
+
+  // Pagination states
+  const [companiesPage, setCompaniesPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [sessionsPage, setSessionsPage] = useState(1);
+  const [billsPage, setBillsPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // ── Guard ──
   if (!session?.user?.is_superadmin) {
@@ -406,6 +414,12 @@ export function AdminPanel() {
         }
       }
 
+      // Round off — use stored value if available, otherwise calculate
+      const storedRoundOff = Number(bill.round_off_amount || 0);
+      const rawTotal = taxableValue + cgst + sgst + cess;
+      const roundOff = storedRoundOff !== 0 ? storedRoundOff : (Math.round(rawTotal) - rawTotal);
+      const roundedTotal = storedRoundOff !== 0 ? Number(bill.total_amount) : Math.round(rawTotal);
+
       // Import and render the invoice template
       const { default: InvoiceTemplate } = await import('@/components/templates/InvoiceTemplate');
       
@@ -413,7 +427,8 @@ export function AdminPanel() {
         <InvoiceTemplate
           billCalculations={{
             sgst, cgst, cess, taxableValue, subtotal, 
-            grandTotal: bill.total_amount, discount: globalDiscount
+            grandTotal: rawTotal, discount: globalDiscount,
+            roundOff, roundedTotal,
           }}
           billDetails={bill}
           items={items}
@@ -772,94 +787,105 @@ export function AdminPanel() {
                   {companies.length === 0 && <Button size="sm" onClick={() => setCompanyDialog(true)}><Plus className="h-4 w-4 mr-1" /> Create First Company</Button>}
                 </div>
               ) : (
-                <Accordion type="multiple" className="space-y-2">
-                  {filteredCompanies.map(company => {
-                    const companyUsers = users.filter(u => u.company_id === company.id);
-                    return (
-                      <AccordionItem key={company.id} value={company.id} className="border rounded-xl px-4 shadow-sm">
-                        <AccordionTrigger className="hover:no-underline py-4">
-                          <div className="flex items-center justify-between w-full pr-4">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-primary/10">
-                                <Building2 className="h-4 w-4 text-primary" />
-                              </div>
-                              <div className="text-left">
-                                <div
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleCompanyClick(company);
-                                  }}
-                                  className="font-semibold text-sm hover:text-primary transition-colors cursor-pointer text-left"
-                                >
-                                  {company.company_name || company.name}
+                <>
+                  <Accordion type="multiple" className="space-y-2">
+                    {filteredCompanies.slice((companiesPage - 1) * ITEMS_PER_PAGE, companiesPage * ITEMS_PER_PAGE).map(company => {
+                      const companyUsers = users.filter(u => u.company_id === company.id);
+                      return (
+                        <AccordionItem key={company.id} value={company.id} className="border rounded-xl px-4 shadow-sm">
+                          <AccordionTrigger className="hover:no-underline py-4">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-primary/10">
+                                  <Building2 className="h-4 w-4 text-primary" />
                                 </div>
-                                <p className="text-xs text-muted-foreground">{company.company_email || 'No email set'}</p>
+                                <div className="text-left">
+                                  <div
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCompanyClick(company);
+                                    }}
+                                    className="font-semibold text-sm hover:text-primary transition-colors cursor-pointer text-left"
+                                  >
+                                    {company.company_name || company.name}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{company.company_email || 'No email set'}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" /> {company.user_count} users
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3" /> {company.bill_count} docs
+                                </span>
+                                <Badge variant="outline" className="text-[10px] font-normal">
+                                  Since {new Date(company.created_at).toLocaleDateString()}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" /> {company.user_count} users
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <FileText className="h-3 w-3" /> {company.bill_count} docs
-                              </span>
-                              <Badge variant="outline" className="text-[10px] font-normal">
-                                Since {new Date(company.created_at).toLocaleDateString()}
-                              </Badge>
-                            </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="space-y-4 pb-4">
-                            {/* Company info grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-muted/30 text-sm border">
-                              {company.gst_number && (
-                                <div><p className="text-xs text-muted-foreground">GST</p><p className="font-medium">{company.gst_number}</p></div>
-                              )}
-                              {company.contact_number && (
-                                <div><p className="text-xs text-muted-foreground">Contact</p><p className="font-medium">{company.contact_number}</p></div>
-                              )}
-                              {company.address && (
-                                <div className="col-span-2"><p className="text-xs text-muted-foreground">Address</p><p className="font-medium">{company.address}</p></div>
-                              )}
-                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-4 pb-4">
+                              {/* Company info grid */}
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 rounded-lg bg-muted/30 text-sm border">
+                                {company.gst_number && (
+                                  <div><p className="text-xs text-muted-foreground">GST</p><p className="font-medium">{company.gst_number}</p></div>
+                                )}
+                                {company.contact_number && (
+                                  <div><p className="text-xs text-muted-foreground">Contact</p><p className="font-medium">{company.contact_number}</p></div>
+                                )}
+                                {company.address && (
+                                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Address</p><p className="font-medium">{company.address}</p></div>
+                                )}
+                              </div>
 
-                            {/* Users */}
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Team Members</p>
-                              {companyUsers.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic">No users linked yet.</p>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  {companyUsers.map(u => (
-                                    <div key={u.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 border text-sm">
-                                      <div className="flex items-center gap-2">
-                                        {u.is_primary && <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" aria-label="Primary" />}
-                                        <span className="font-medium">{u.username || u.email}</span>
-                                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                              {/* Users */}
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Team Members</p>
+                                {companyUsers.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic">No users linked yet.</p>
+                                ) : (
+                                  <div className="space-y-1.5">
+                                    {companyUsers.map(u => (
+                                      <div key={u.id} className="flex items-center justify-between px-3 py-2 rounded-lg bg-muted/40 border text-sm">
+                                        <div className="flex items-center gap-2">
+                                          {u.is_primary && <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" aria-label="Primary" />}
+                                          <span className="font-medium">{u.username || u.email}</span>
+                                          <span className="text-xs text-muted-foreground">{u.email}</span>
+                                        </div>
+                                        <Badge variant={u.is_primary ? 'default' : 'secondary'} className="text-[10px]">
+                                          {u.is_primary ? 'Primary' : 'Member'}
+                                        </Badge>
                                       </div>
-                                      <Badge variant={u.is_primary ? 'default' : 'secondary'} className="text-[10px]">
-                                        {u.is_primary ? 'Primary' : 'Member'}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <Button
-                                size="sm" variant="ghost"
-                                className="mt-2 h-7 text-xs gap-1"
-                                onClick={() => { setSelectedCompanyId(company.id); setUserDialog(true); }}
-                              >
-                                <UserPlus className="h-3 w-3" /> Add member
-                              </Button>
+                                    ))}
+                                  </div>
+                                )}
+                                <Button
+                                  size="sm" variant="ghost"
+                                  className="mt-2 h-7 text-xs gap-1"
+                                  onClick={() => { setSelectedCompanyId(company.id); setUserDialog(true); }}
+                                >
+                                  <UserPlus className="h-3 w-3" /> Add member
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                  {filteredCompanies.length > ITEMS_PER_PAGE && (
+                    <div className="mt-4 flex justify-center">
+                      <NumberedPagination
+                        currentPage={companiesPage}
+                        totalPages={Math.ceil(filteredCompanies.length / ITEMS_PER_PAGE)}
+                        onPageChange={setCompaniesPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -887,43 +913,54 @@ export function AdminPanel() {
               ) : filteredUsers.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground text-sm">{nonAdminUsers.length === 0 ? "No users yet." : "No matching users found."}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Joined</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers.map(user => (
-                      <TableRow key={user.id} className="hover:bg-muted/30">
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {user.is_primary && <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
-                            {user.username || '—'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                        <TableCell>
-                          {user.company_name
-                            ? <Badge variant="outline">{user.company_name}</Badge>
-                            : <span className="text-xs text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.is_primary ? 'default' : 'secondary'} className="text-[10px]">
-                            {user.is_primary ? 'Primary' : 'Member'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(user.created_at).toLocaleDateString()}
-                        </TableCell>
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Joined</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE).map(user => (
+                        <TableRow key={user.id} className="hover:bg-muted/30">
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {user.is_primary && <Crown className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />}
+                              {user.username || '—'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                          <TableCell>
+                            {user.company_name
+                              ? <Badge variant="outline">{user.company_name}</Badge>
+                              : <span className="text-xs text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={user.is_primary ? 'default' : 'secondary'} className="text-[10px]">
+                              {user.is_primary ? 'Primary' : 'Member'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {filteredUsers.length > ITEMS_PER_PAGE && (
+                    <div className="mt-4 flex justify-center">
+                      <NumberedPagination
+                        currentPage={usersPage}
+                        totalPages={Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)}
+                        onPageChange={setUsersPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -987,95 +1024,108 @@ export function AdminPanel() {
           ) : Object.keys(billsByCompany).length === 0 ? (
             <p className="text-center py-8 text-muted-foreground text-sm">No documents match your filters.</p>
           ) : (
-            <Accordion type="multiple" defaultValue={Object.keys(billsByCompany)} className="space-y-3">
-              {Object.entries(billsByCompany).map(([companyName, companyBills]) => {
-                const invoiceCount = companyBills.filter(b => b.type === 'invoice').length;
-                const quotationCount = companyBills.filter(b => b.type === 'quotation').length;
-                const totalValue = companyBills.reduce((s, b) => s + Number(b.total_amount), 0);
-                return (
-                  <AccordionItem key={companyName} value={companyName} className="border rounded-xl shadow-sm bg-card">
-                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                      <div className="flex items-center justify-between w-full pr-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-primary/10">
-                            <Building2 className="h-4 w-4 text-primary" />
+            <>
+              <Accordion type="multiple" defaultValue={Object.keys(billsByCompany).slice((billsPage - 1) * ITEMS_PER_PAGE, billsPage * ITEMS_PER_PAGE)} className="space-y-3">
+                {Object.entries(billsByCompany)
+                  .slice((billsPage - 1) * ITEMS_PER_PAGE, billsPage * ITEMS_PER_PAGE)
+                  .map(([companyName, companyBills]) => {
+                  const invoiceCount = companyBills.filter(b => b.type === 'invoice').length;
+                  const quotationCount = companyBills.filter(b => b.type === 'quotation').length;
+                  const totalValue = companyBills.reduce((s, b) => s + Number(b.total_amount), 0);
+                  return (
+                    <AccordionItem key={companyName} value={companyName} className="border rounded-xl shadow-sm bg-card">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Building2 className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="text-left">
+                              <p className="font-semibold text-sm">{companyName}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''} · {quotationCount} quotation{quotationCount !== 1 ? 's' : ''}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <p className="font-semibold text-sm">{companyName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {invoiceCount} invoice{invoiceCount !== 1 ? 's' : ''} · {quotationCount} quotation{quotationCount !== 1 ? 's' : ''}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="font-bold text-sm">₹{totalValue.toFixed(2)}</p>
+                              <p className="text-[10px] text-muted-foreground">total value</p>
+                            </div>
+                            <Button
+                              size="sm" variant="outline"
+                              className="h-7 text-xs gap-1.5 shrink-0"
+                              onClick={e => { e.stopPropagation(); exportCSV(companyName, companyBills); }}
+                            >
+                              <Download className="h-3 w-3" /> Export
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="font-bold text-sm">₹{totalValue.toFixed(2)}</p>
-                            <p className="text-[10px] text-muted-foreground">total value</p>
-                          </div>
-                          <Button
-                            size="sm" variant="outline"
-                            className="h-7 text-xs gap-1.5 shrink-0"
-                            onClick={e => { e.stopPropagation(); exportCSV(companyName, companyBills); }}
-                          >
-                            <Download className="h-3 w-3" /> Export
-                          </Button>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="px-4 pb-4">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/40">
-                              <TableHead className="text-xs">Invoice #</TableHead>
-                              <TableHead className="text-xs">Type</TableHead>
-                              <TableHead className="text-xs">Customer</TableHead>
-                              <TableHead className="text-xs text-right">Amount</TableHead>
-                              <TableHead className="text-xs">GST</TableHead>
-                              <TableHead className="text-xs">Date</TableHead>
-                              <TableHead className="text-xs">Action</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {companyBills.map(bill => (
-                              <TableRow key={bill.id} className="hover:bg-muted/30 text-sm">
-                                <TableCell className="font-mono text-xs">{bill.invoice_number}</TableCell>
-                                <TableCell>
-                                  <Badge variant={bill.type === 'quotation' ? 'secondary' : 'default'} className="text-[10px] uppercase">
-                                    {bill.type}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{bill.customer_name}</TableCell>
-                                <TableCell className="text-right font-semibold">₹{Number(bill.total_amount).toFixed(2)}</TableCell>
-
-                                <TableCell>
-                                  <Badge variant={bill.is_gst_bill ? 'outline' : 'secondary'} className="text-[10px]">
-                                    {bill.is_gst_bill ? 'GST' : 'Non-GST'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-xs text-muted-foreground">
-                                  {new Date(bill.date_of_bill).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 text-xs gap-1"
-                                    onClick={() => downloadBillPDF(bill)}
-                                  >
-                                    <Download className="h-3 w-3" /> PDF
-                                  </Button>
-                                </TableCell>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="px-4 pb-4">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/40">
+                                <TableHead className="text-xs">Invoice #</TableHead>
+                                <TableHead className="text-xs">Type</TableHead>
+                                <TableHead className="text-xs">Customer</TableHead>
+                                <TableHead className="text-xs text-right">Amount</TableHead>
+                                <TableHead className="text-xs">GST</TableHead>
+                                <TableHead className="text-xs">Date</TableHead>
+                                <TableHead className="text-xs">Action</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
+                            </TableHeader>
+                            <TableBody>
+                              {companyBills.map(bill => (
+                                <TableRow key={bill.id} className="hover:bg-muted/30 text-sm">
+                                  <TableCell className="font-mono text-xs">{bill.invoice_number}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={bill.type === 'quotation' ? 'secondary' : 'default'} className="text-[10px] uppercase">
+                                      {bill.type}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{bill.customer_name}</TableCell>
+                                  <TableCell className="text-right font-semibold">₹{Number(bill.total_amount).toFixed(2)}</TableCell>
+
+                                  <TableCell>
+                                    <Badge variant={bill.is_gst_bill ? 'outline' : 'secondary'} className="text-[10px]">
+                                      {bill.is_gst_bill ? 'GST' : 'Non-GST'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {new Date(bill.date_of_bill).toLocaleDateString()}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 text-xs gap-1"
+                                      onClick={() => downloadBillPDF(bill)}
+                                    >
+                                      <Download className="h-3 w-3" /> PDF
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+              {Object.keys(billsByCompany).length > ITEMS_PER_PAGE && (
+                <div className="mt-4 flex justify-center">
+                  <NumberedPagination
+                    currentPage={billsPage}
+                    totalPages={Math.ceil(Object.keys(billsByCompany).length / ITEMS_PER_PAGE)}
+                    onPageChange={setBillsPage}
+                  />
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
         {/* ── SESSIONS ── */}
@@ -1114,100 +1164,111 @@ export function AdminPanel() {
               ) : filteredSessions.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground text-sm">{sessions.length === 0 ? "No sessions recorded yet." : "No matching sessions found."}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Status</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Login Time</TableHead>
-                      <TableHead>Last Active</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead>IP / Browser</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSessions.map(s => {
-                      const now = new Date();
-                      const isTerminated = !!s.terminated_at;
-                      const isExpired = !isTerminated && new Date(s.expires_at) < now;
-                      const isActive = !isTerminated && !isExpired;
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead>Status</TableHead>
+                        <TableHead>User</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Login Time</TableHead>
+                        <TableHead>Last Active</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead>IP / Browser</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSessions.slice((sessionsPage - 1) * ITEMS_PER_PAGE, sessionsPage * ITEMS_PER_PAGE).map(s => {
+                        const now = new Date();
+                        const isTerminated = !!s.terminated_at;
+                        const isExpired = !isTerminated && new Date(s.expires_at) < now;
+                        const isActive = !isTerminated && !isExpired;
 
-                      const statusIcon = isActive
-                        ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        : isExpired
-                          ? <Clock className="h-4 w-4 text-amber-500" />
-                          : <XCircle className="h-4 w-4 text-destructive" />;
+                        const statusIcon = isActive
+                          ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                          : isExpired
+                            ? <Clock className="h-4 w-4 text-amber-500" />
+                            : <XCircle className="h-4 w-4 text-destructive" />;
 
-                      const browserInfo = s.user_agent
-                        ? s.user_agent.includes('Chrome') ? 'Chrome'
-                          : s.user_agent.includes('Firefox') ? 'Firefox'
-                          : s.user_agent.includes('Safari') ? 'Safari'
-                          : 'Browser'
-                        : '—';
+                        const browserInfo = s.user_agent
+                          ? s.user_agent.includes('Chrome') ? 'Chrome'
+                            : s.user_agent.includes('Firefox') ? 'Firefox'
+                            : s.user_agent.includes('Safari') ? 'Safari'
+                            : 'Browser'
+                          : '—';
 
-                      return (
-                        <TableRow key={s.id} className={`hover:bg-muted/30 ${!isActive ? 'opacity-60' : ''}`}>
-                          <TableCell>
-                            <div className="flex items-center gap-1.5">
-                              {statusIcon}
-                              <span className="text-xs font-medium">
-                                {isActive ? 'Active' : isExpired ? 'Expired' : 'Terminated'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{s.username || s.user_email}</p>
-                              <p className="text-xs text-muted-foreground">{s.user_email}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {s.is_superadmin ? (
-                              <Badge variant="default" className="text-[10px]">Superadmin</Badge>
-                            ) : (
-                              s.company_name || '—'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(s.created_at).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(s.last_active).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(s.expires_at).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            <div>
-                              <p>{s.ip_address || '—'}</p>
-                              <p className="text-[10px]">{browserInfo}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {isActive ? (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="h-7 text-xs gap-1"
-                                disabled={terminatingSession === s.id}
-                                onClick={() => handleTerminateSession(s.id)}
-                              >
-                                <XCircle className="h-3 w-3" />
-                                {terminatingSession === s.id ? 'Ending…' : 'Terminate'}
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground italic">
-                                {isExpired ? 'Auto-expired' : `By ${s.terminated_by_email || 'system'}`}
-                              </span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                        return (
+                          <TableRow key={s.id} className={`hover:bg-muted/30 ${!isActive ? 'opacity-60' : ''}`}>
+                            <TableCell>
+                              <div className="flex items-center gap-1.5">
+                                {statusIcon}
+                                <span className="text-xs font-medium">
+                                  {isActive ? 'Active' : isExpired ? 'Expired' : 'Terminated'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium text-sm">{s.username || s.user_email}</p>
+                                <p className="text-xs text-muted-foreground">{s.user_email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {s.is_superadmin ? (
+                                <Badge variant="default" className="text-[10px]">Superadmin</Badge>
+                              ) : (
+                                s.company_name || '—'
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(s.created_at).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(s.last_active).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {new Date(s.expires_at).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              <div>
+                                <p>{s.ip_address || '—'}</p>
+                                <p className="text-[10px]">{browserInfo}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {isActive ? (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-7 text-xs gap-1"
+                                  disabled={terminatingSession === s.id}
+                                  onClick={() => handleTerminateSession(s.id)}
+                                >
+                                  <XCircle className="h-3 w-3" />
+                                  {terminatingSession === s.id ? 'Ending…' : 'Terminate'}
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">
+                                  {isExpired ? 'Auto-expired' : `By ${s.terminated_by_email || 'system'}`}
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  {filteredSessions.length > ITEMS_PER_PAGE && (
+                    <div className="mt-4 flex justify-center">
+                      <NumberedPagination
+                        currentPage={sessionsPage}
+                        totalPages={Math.ceil(filteredSessions.length / ITEMS_PER_PAGE)}
+                        onPageChange={setSessionsPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

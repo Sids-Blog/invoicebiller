@@ -205,7 +205,6 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
     let cgst = 0;
     let sgst = 0;
     let cess = 0;
-    let totalTax = 0;
 
     if (isCurrentlyGst) {
       billItems.forEach(item => {
@@ -217,21 +216,21 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
         const effectiveSgstRate = item.sgst_rate ?? 9;
         const effectiveCessRate = item.cess_rate ?? 0;
 
-        const itemCgst = itemTaxable * (effectiveCgstRate / 100);
-        const itemSgst = itemTaxable * (effectiveSgstRate / 100);
-        const itemCess = itemTaxable * (effectiveCessRate / 100);
-
-        cgst += itemCgst;
-        sgst += itemSgst;
-        cess += itemCess;
+        cgst += itemTaxable * (effectiveCgstRate / 100);
+        sgst += itemTaxable * (effectiveSgstRate / 100);
+        cess += itemTaxable * (effectiveCessRate / 100);
       });
     }
 
-    const grandTotal = taxableValue + cgst + sgst + cess;
+    const rawTotal = taxableValue + cgst + sgst + cess;
+    const roundedTotal = Math.round(rawTotal);
+    const roundOff = roundedTotal - rawTotal;
 
     return {
       subtotal,
-      grandTotal,
+      grandTotal: rawTotal,
+      roundedTotal,
+      roundOff,
       discount,
       sgst,
       cgst,
@@ -253,108 +252,121 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
 
     setLoading(true);
 
-    // Generate invoice number using the new numbering system
-    let generatedInvoiceNumber = editingInvoiceNumber;
-    if (!editId) {
-      const invoiceNumberRes = await dbUtils.rpc('generate_invoice_number', {
-        company_id: company_id,
-        type: createTab // 'invoice' or 'quotation'
-      });
-
-      if (invoiceNumberRes.error || !invoiceNumberRes.data || invoiceNumberRes.data.length === 0) {
-        toast({
-          title: "Error generating invoice number",
-          description: invoiceNumberRes.error || "Failed to generate invoice number. Please ensure company has a prefix set.",
-          variant: "destructive"
+    try {
+      // Generate invoice number using the new numbering system
+      let generatedInvoiceNumber = editingInvoiceNumber;
+      if (!editId) {
+        const invoiceNumberRes = await dbUtils.rpc('generate_invoice_number', {
+          company_id: company_id,
+          type: createTab // 'invoice' or 'quotation'
         });
-        setLoading(false);
+
+        if (invoiceNumberRes.error || !invoiceNumberRes.data || invoiceNumberRes.data.length === 0) {
+          toast({
+            title: "Error generating invoice number",
+            description: invoiceNumberRes.error || "Failed to generate invoice number. Please ensure company has a prefix set.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        generatedInvoiceNumber = invoiceNumberRes.data[0].generate_invoice_number;
+      }
+
+      const billPayload = {
+        company_id,
+        created_by: session.user.id,
+        invoice_number: generatedInvoiceNumber,
+        customer_name: customerName,
+        customer_phone: createTab === "invoice" ? customerPhone : "",
+        customer_address: createTab === "invoice" ? customerAddress : "",
+        customer_gstin: isCurrentlyGst ? customerGstin : "",
+        total_amount: billCalculations.roundedTotal,
+        round_off_amount: billCalculations.roundOff,
+        discount,
+        is_gst_bill: isCurrentlyGst,
+        cgst_percentage: isCurrentlyGst ? cgstPercent : 0,
+        sgst_percentage: isCurrentlyGst ? sgstPercent : 0,
+        cess_percentage: isCurrentlyGst ? cessPercent : 0,
+        gst_amount: isCurrentlyGst ? (billCalculations.cgst + billCalculations.sgst + billCalculations.cess) : 0,
+        subtotal_amount: billCalculations.subtotal,
+        taxable_amount: billCalculations.taxableValue,
+        cgst_amount: billCalculations.cgst,
+        sgst_amount: billCalculations.sgst,
+        cess_amount: billCalculations.cess,
+        type: createTab,
+        comments,
+      };
+
+      let billRes;
+      if (editId) {
+        billRes = await dbUtils.update("bills", { ...billPayload, updated_by: session.user.id }, "id = $1", [editId]);
+      } else {
+        billRes = await dbUtils.insert("bills", billPayload);
+      }
+
+      if (billRes.error || !billRes.data || billRes.data.length === 0) {
+        toast({ title: "Error creating bill", description: billRes.error || "Unknown error", variant: "destructive" });
         return;
       }
 
-      generatedInvoiceNumber = invoiceNumberRes.data[0].generate_invoice_number;
-    }
+      const billId = billRes.data[0].id;
+      if (editId) {
+        await dbUtils.execute("DELETE FROM bill_items WHERE bill_id = $1", [editId]);
+      }
 
-    const billPayload = {
-      company_id,
-      created_by: session.user.id,
-      invoice_number: generatedInvoiceNumber,
-      customer_name: customerName,
-      customer_phone: createTab === "invoice" ? customerPhone : "",
-      customer_address: createTab === "invoice" ? customerAddress : "",
-      customer_gstin: isCurrentlyGst ? customerGstin : "",
-      total_amount: billCalculations.grandTotal,
-      discount,
-      is_gst_bill: isCurrentlyGst,
-      cgst_percentage: isCurrentlyGst ? cgstPercent : 0,
-      sgst_percentage: isCurrentlyGst ? sgstPercent : 0,
-      cess_percentage: isCurrentlyGst ? cessPercent : 0,
-      gst_amount: isCurrentlyGst ? (billCalculations.cgst + billCalculations.sgst + billCalculations.cess) : 0,
-      subtotal_amount: billCalculations.subtotal,
-      taxable_amount: billCalculations.taxableValue,
-      cgst_amount: billCalculations.cgst,
-      sgst_amount: billCalculations.sgst,
-      cess_amount: billCalculations.cess,
-      type: createTab,
-      comments,
-    };
+      for (const item of billItems) {
+        await dbUtils.insert("bill_items", {
+          bill_id: billId,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit,
+          hsn_sac: item.hsn_sac,
+          hsn_sac_type: item.hsn_sac_type,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          cess_rate: item.cess_rate,
+          additional_desc: item.additional_desc,
+        });
+      }
 
-    let billRes;
-    if (editId) {
-      billRes = await dbUtils.update("bills", { ...billPayload, updated_by: session.user.id }, "id = $1", [editId]);
-    } else {
-      billRes = await dbUtils.insert("bills", billPayload);
-    }
-
-    if (billRes.error || !billRes.data || billRes.data.length === 0) {
-      toast({ title: "Error creating bill", description: billRes.error || "Unknown error", variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    const billId = billRes.data[0].id;
-    if (editId) {
-      await dbUtils.execute("DELETE FROM bill_items WHERE bill_id = $1", [editId]);
-    }
-
-    for (const item of billItems) {
-      await dbUtils.insert("bill_items", {
-        bill_id: billId,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        price: item.price,
-        unit: item.unit,
-        hsn_sac: item.hsn_sac,
-        hsn_sac_type: item.hsn_sac_type,
-        cgst_rate: item.cgst_rate,
-        sgst_rate: item.sgst_rate,
-        cess_rate: item.cess_rate,
-        additional_desc: item.additional_desc,
+      // Insert an audit log for this creation
+      await dbUtils.insert("audit_logs", {
+        company_id,
+        entity_name: "bills",
+        entity_id: billId,
+        action: editId ? "UPDATE" : "CREATE",
+        actor_id: session.user.id,
+        new_data: billPayload,
       });
-    }
 
-    // Insert an audit log for this creation
-    await dbUtils.insert("audit_logs", {
-      company_id,
-      entity_name: "bills",
-      entity_id: billId,
-      action: "CREATE",
-      actor_id: session.user.id,
-      new_data: billPayload,
-    });
+      toast({ title: editId ? "Bill Updated" : "Bill Created", description: editId ? "Successfully updated bill." : "Successfully created bill." });
+      
+      // Reset form fields
+      setCustomerName("");
+      setCustomerPhone("");
+      setCustomerAddress("");
+      setCustomerGstin("");
+      setBillItems([]);
+      setDiscount(0);
+      setComments("");
 
-    toast({ title: editId ? "Bill Updated" : "Bill Created", description: editId ? "Successfully updated bill." : "Successfully created bill." });
-    if (onSuccess) {
-      onSuccess();
-    } else if (editId) {
-      router.push("/history");
+      if (onSuccess) {
+        onSuccess();
+      } else if (editId) {
+        router.push("/history");
+      }
+    } catch (error: any) {
+      console.error("Error creating bill:", error);
+      toast({
+        title: "Unexpected Error",
+        description: error.message || "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setCustomerName("");
-    setCustomerPhone("");
-    setCustomerAddress("");
-    setCustomerGstin("");
-    setBillItems([]);
-    setDiscount(0);
-    setComments("");
   };
 
   const renderProductSelectionAndTable = () => (
@@ -488,7 +500,7 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
               <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Customer Details</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className={createTab === "quotation" ? "col-span-2 space-y-2" : "space-y-2"}>
-                  <Label>Customer Name *</Label>
+                  <Label>Name *</Label>
                   <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Name" />
                 </div>
                 {createTab === "invoice" && (
@@ -561,9 +573,16 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
                   </div>
                 )}
 
+                {billCalculations.roundOff !== 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground border-t border-border/50 pt-2 mt-2">
+                    <span>Round Off:</span>
+                    <span>{billCalculations.roundOff > 0 ? '+' : ''}{billCalculations.roundOff.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-border mt-2">
                   <span>Grand Total:</span>
-                  <span className="text-primary">Rs. {billCalculations.grandTotal.toFixed(2)}</span>
+                  <span className="text-primary">Rs. {billCalculations.roundedTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>

@@ -31,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   loading?: boolean
 }
 
+import { NumberedPagination } from "@/components/ui/numbered-pagination"
+
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -52,8 +54,8 @@ export function DataTable<TData, TValue>({
   })
 
   return (
-    <div>
-      <div className="overflow-hidden rounded-md border bg-background">
+    <div className="flex flex-col flex-1 h-full">
+      <div className="overflow-hidden rounded-md border bg-background mb-4">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -108,27 +110,12 @@ export function DataTable<TData, TValue>({
       
       {/* Pagination Controls */}
       {table.getPageCount() > 1 && (
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground flex items-center justify-center">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+        <div className="flex items-center justify-center py-2 mt-auto">
+          <NumberedPagination
+            currentPage={table.getState().pagination.pageIndex + 1}
+            totalPages={table.getPageCount()}
+            onPageChange={(page) => table.setPageIndex(page - 1)}
+          />
         </div>
       )}
     </div>
