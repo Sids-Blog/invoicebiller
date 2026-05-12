@@ -96,6 +96,7 @@ interface Bill {
   cgst_amount?: number;
   sgst_amount?: number;
   cess_amount?: number;
+  round_off_amount?: number;
   company_name: string;
   created_by_email?: string;
   status?: string;

@@ -237,7 +237,7 @@ export const Billing = ({ editId: propEditId, onSuccess }: { editId?: string, on
       cess,
       taxableValue,
     };
-  }, [billItems, discount, isCurrentlyGst, sgstPercent, cgstPercent, cessPercent]);
+  }, [billItems, discount, isCurrentlyGst]);
 
   const handleCreateBill = async () => {
     if (!session?.user?.id || !company_id) return;

@@ -49,7 +49,6 @@ export async function PUT(
     }
 
     // 1. Fetch old data for audit log
-    console.log('[API /admin/companies PUT] Fetching old data...');
     const oldDataRows = await serverQuery(
       `SELECT 
         c.name as company_name, 

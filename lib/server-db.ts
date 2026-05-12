@@ -47,9 +47,7 @@ export const castRow = <T extends Record<string, any>>(row: T): T => {
 export const serverQuery = async (query: string, params: any[] = []): Promise<any[]> => {
   const sql = getServerSql();
   try {
-    console.log('[serverQuery DEBUG] Executing query for params:', params);
     const result = await (sql as any).query(query, params);
-    console.log('[serverQuery DEBUG] Raw result for params', params, 'is:', JSON.stringify(result).substring(0, 250));
     
     let rows: any[];
     if (Array.isArray(result)) {

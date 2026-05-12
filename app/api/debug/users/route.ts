@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
-import { serverQuery } from '@/lib/server-db';
 
-// THIS FILE SHOULD BE DELETED BEFORE GOING TO PRODUCTION.
-// It is intentionally disabled here to prevent accidental data exposure.
+/**
+ * This endpoint has been intentionally disabled.
+ * Debug endpoints must never exist in production code.
+ * If you need to inspect users, use the Admin Panel (/admin).
+ */
 export async function GET() {
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
-  try {
-    const users = await serverQuery(`SELECT id, email, username FROM users`);
-    return NextResponse.json({ users });
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+  return NextResponse.json({ error: 'Not found' }, { status: 404 });
 }
